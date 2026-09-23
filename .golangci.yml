@@ -1,0 +1,14 @@
+linters:
+  enable:
+    - gosec
+    - bodyclose
+
+linters-settings:
+  gosec:
+    excludes:
+      # The default Tetragon endpoint is a local Unix domain socket; insecure
+      # transport is the expected configuration for plaintext UDS.
+      - G402
+
+run:
+  timeout: 5m

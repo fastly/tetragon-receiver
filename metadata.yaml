@@ -1,0 +1,65 @@
+display_name: Tetragon Receiver
+type: tetragon
+
+description: |
+  Receives eBPF security and observability events from the Cilium Tetragon daemon
+  via its gRPC API and converts them into OpenTelemetry logs.
+
+  Process command lines may contain sensitive data. Configure field_filters to
+  exclude process.arguments before exporting logs if your pipeline does not need them.
+
+status:
+  class: receiver
+  stability:
+    development: [logs]
+  distributions: []
+  codeowners:
+    active: []
+
+tests:
+  config:
+  skip_lifecycle: true
+  skip_shutdown: true
+
+telemetry:
+  metrics:
+    tetragonreceiver_consume_errors:
+      enabled: true
+      description: Number of failures handing converted logs to the next consumer
+      stability: development
+      unit: "1"
+      sum:
+        value_type: int
+        monotonic: true
+    tetragonreceiver_events_dropped:
+      enabled: true
+      description: Number of events dropped due to worker channel queue overflow
+      stability: development
+      unit: "1"
+      sum:
+        value_type: int
+        monotonic: true
+    tetragonreceiver_events_received:
+      enabled: true
+      description: Number of raw eBPF events read from the Tetragon gRPC stream
+      stability: development
+      unit: "1"
+      sum:
+        value_type: int
+        monotonic: true
+    tetragonreceiver_stream_errors:
+      enabled: true
+      description: Number of times the Tetragon gRPC stream broke and was reconnected
+      stability: development
+      unit: "1"
+      sum:
+        value_type: int
+        monotonic: true
+    tetragonreceiver_unknown_events:
+      enabled: true
+      description: Number of events with an unrecognized Tetragon event type
+      stability: development
+      unit: "1"
+      sum:
+        value_type: int
+        monotonic: true

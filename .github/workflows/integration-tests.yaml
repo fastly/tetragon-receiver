@@ -1,0 +1,95 @@
+name: Integration Tests
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches: [ main ]
+
+# WARNING: This job runs a container with elevated privileges. It MUST remain on
+# GitHub-hosted ephemeral runners. Do not migrate to a self-hosted runner without
+# a maintainer-approval environment and scoped secrets.
+
+jobs:
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - tetragon-image: quay.io/cilium/tetragon@sha256:ff96ace3e6a0166ba04ff3eecfaeee19b7e6deee2b7cdbe3245feda57df5015f
+            tetragon-tag: v1.6.1
+          - tetragon-image: quay.io/cilium/tetragon@sha256:afc9458ba4bc3f2795da3df6b03d88ce50e175ac3903027de8036e2046b84a02
+            tetragon-tag: v1.7.1
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.26'
+          cache: true
+      
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003 # v4.4.0
+      
+      - name: Start Tetragon container
+        run: |
+          docker run -d \
+            --name tetragon \
+            --privileged \
+            --network host \
+            -v /sys:/sys:ro \
+            -v /proc:/proc \
+            -v /etc/os-release:/etc/os-release:ro \
+            -v /var/run/cilium/tetragon:/var/run/cilium/tetragon \
+            ${{ matrix.tetragon-image }} \
+            tetragon \
+              --gops-address :6789 \
+              --server-address unix:///var/run/cilium/tetragon/tetragon.sock
+          timeout 30 bash -c 'until [ -S /var/run/cilium/tetragon/tetragon.sock ]; do sleep 1; done' || {
+            echo "Tetragon socket not ready after 30s"
+            docker logs tetragon
+            exit 1
+          }
+          sleep 2
+      
+      - name: Verify Tetragon is running
+        run: |
+          docker exec tetragon tetra version || true
+      
+      - name: Generate some events for capture
+        run: |
+          # Run some basic commands to generate process events
+          for i in {1..5}; do
+            /bin/ls -la /tmp >/dev/null 2>&1 &
+            /bin/sleep 0.1 >/dev/null 2>&1 &
+            wait
+          done
+          sleep 1
+      
+      - name: Run integration tests
+        run: |
+          go test -v -timeout=30s \
+            -run TestReceiveEvents \
+            ./...
+        env:
+          TETRAGON_SOCKET: unix:///var/run/cilium/tetragon/tetragon.sock
+      
+      - name: Check Tetragon logs on failure
+        if: failure()
+        run: |
+          echo "=== Tetragon container logs ==="
+          docker logs tetragon || true
+          echo "=== Socket status ==="
+          ls -la /var/run/cilium/tetragon/ || true
+      
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop tetragon || true
+          docker rm tetragon || true

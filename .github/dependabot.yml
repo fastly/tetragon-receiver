@@ -1,0 +1,15 @@
+version: 2
+updates:
+  # Go modules: security alerts only; no scheduled version-bump PRs.
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+
+  # GitHub Actions: security alerts only; no scheduled version-bump PRs.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
