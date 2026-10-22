@@ -31,7 +31,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.26'
+          go-version: '1.26.10'
           cache: true
       
       - name: Set up Docker
@@ -43,13 +43,13 @@ jobs:
             --name tetragon \
             --privileged \
             --network host \
-            -v /sys:/sys:ro \
+            -v /sys:/sys \
             -v /proc:/proc \
             -v /etc/os-release:/etc/os-release:ro \
             -v /var/run/cilium/tetragon:/var/run/cilium/tetragon \
             ${{ matrix.tetragon-image }} \
             tetragon \
-              --gops-address :6789 \
+              --gops-address 127.0.0.1:8118 \
               --server-address unix:///var/run/cilium/tetragon/tetragon.sock
           timeout 30 bash -c 'until [ -S /var/run/cilium/tetragon/tetragon.sock ]; do sleep 1; done' || {
             echo "Tetragon socket not ready after 30s"
