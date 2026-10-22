@@ -177,16 +177,16 @@ func TestReceiveEvents(t *testing.T) {
 func TestDefaultConfigConnectsToPlainUDS(t *testing.T) {
 	sockPath := "/tmp/tetragon-receiver-default-test.sock"
 	_ = os.Remove(sockPath)
-	defer os.Remove(sockPath)
+	defer func() { _ = os.Remove(sockPath) }()
 
 	l, err := net.Listen("unix", sockPath)
 	require.NoError(t, err)
-	defer l.Close()
+	defer func() { _ = l.Close() }()
 
 	mock := &mockFineGuidanceSensorsServer{connectedCh: make(chan struct{})}
 	grpcServer := grpc.NewServer()
 	tetragon.RegisterFineGuidanceSensorsServer(grpcServer, mock)
-	go grpcServer.Serve(l)
+	go func() { _ = grpcServer.Serve(l) }()
 	defer grpcServer.Stop()
 
 	cfg := createDefaultConfig().(*Config)
